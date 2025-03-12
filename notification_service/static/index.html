@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications en Temps Réel</title>
+    <script>
+        window.onload = function () {
+            let client_id = prompt("Entrez votre ID client :", "456");
+
+            // ✅ Détecter si le script tourne en local ou dans Docker
+            let ws_host = window.location.hostname || "localhost"; 
+            let ws_url = `ws://${ws_host}:8005/ws/${client_id}`;
+
+            console.log("🔗 Connexion WebSocket à :", ws_url);
+
+            let ws = new WebSocket(ws_url);
+
+            ws.onopen = function() {
+                console.log("✅ WebSocket connecté !");
+            };
+
+            ws.onmessage = function(event) {
+                console.log("📩 Message reçu:", event.data);
+                
+                try {
+                    let message = JSON.parse(event.data);
+                    console.log("📩 Message JSON reçu:", message);
+            
+                    let notificationBox = document.getElementById("notifications");
+                    let newNotification = document.createElement("p");
+                    newNotification.innerHTML = `<strong>${message.status}</strong>: ${message.reason}`;
+                    notificationBox.appendChild(newNotification);
+                } catch (error) {
+                    console.error("❌ Erreur de parsing JSON:", error);
+                }
+            };
+
+            ws.onerror = function(error) {
+                console.error("❌ Erreur WebSocket:", error);
+                alert("❌ Impossible de se connecter au serveur WebSocket !");
+            };
+
+            ws.onclose = function() {
+                console.warn("🔌 WebSocket fermé !");
+            };
+        };
+    </script>
+</head>
+<body>
+    <h2>Notifications en Temps Réel</h2>
+    <div id="notifications"></div>
+</body>
+</html>

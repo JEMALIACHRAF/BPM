@@ -1,0 +1,227 @@
+version: "3.8"
+
+networks:
+  app_network:
+    driver: bridge
+
+services:
+  # 🔹 RabbitMQ (Messagerie inter-services)
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"  # Port AMQP pour la communication entre services
+      - "15672:15672"  # Interface d'administration
+    restart: always
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 8
+
+  # 🔹 Loan Service
+  loan_service:
+    build: ./loan_service
+    container_name: loan_service
+    ports:
+      - "8001:8001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - app_network
+
+  celery_worker_loan:
+    build: ./loan_service
+    container_name: celery_worker_loan
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=info", "-E","-Q", "loan_queue", "-P", "threads", "--uid=nobody", "--without-heartbeat", "--without-gossip"]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      loan_service:
+        condition: service_started
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - CELERYD_LOG_LEVEL=info
+      - CELERYD_HIJACK_ROOT_LOGGER=False
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 🔹 Credit Service
+  credit_service:
+    build: ./credit_service
+    container_name: credit_service
+    ports:
+      - "8002:8002"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - app_network
+
+  celery_worker_credit:
+    build: ./credit_service
+    container_name: celery_worker_credit
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=info","-E", "-Q", "credit_queue", "-P", "threads", "--uid=nobody", "--without-heartbeat", "--without-gossip"]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      credit_service:
+        condition: service_started
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - CELERYD_LOG_LEVEL=info
+      - CELERYD_HIJACK_ROOT_LOGGER=False
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 🔹 Property Service
+  property_service:
+    build: ./property_service
+    container_name: property_service
+    ports:
+      - "8003:8003"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - app_network
+
+  celery_worker_property:
+    build: ./property_service
+    container_name: celery_worker_property
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=info","-E", "-Q", "property_queue", "-P", "threads", "--uid=nobody", "--without-heartbeat", "--without-gossip"]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      property_service:
+        condition: service_started
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - CELERYD_LOG_LEVEL=info
+      - CELERYD_HIJACK_ROOT_LOGGER=False
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 🔹 Decision Service
+  decision_service:
+    build: ./decision_service
+    container_name: decision_service
+    ports:
+      - "8004:8004"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - app_network
+
+  celery_worker_decision:
+    build: ./decision_service
+    container_name: celery_worker_decision
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=info","-E", "-Q", "decision_queue", "-P", "threads", "--uid=nobody", "--without-heartbeat", "--without-gossip"]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      decision_service:
+        condition: service_started
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - CELERYD_LOG_LEVEL=info
+      - CELERYD_HIJACK_ROOT_LOGGER=False
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 🔹 Notification Service
+  notification_service:
+    build: ./notification_service
+    container_name: notification_service
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./notification_service/static:/app/static
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - app_network
+
+  celery_worker_notification:
+    build: ./notification_service
+    container_name: celery_worker_notification
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=info","-E", "-Q", "notification_queue", "-P", "threads", "--uid=nobody", "--without-heartbeat", "--without-gossip"]
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      notification_service:
+        condition: service_started
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - CELERYD_LOG_LEVEL=info
+      - CELERYD_HIJACK_ROOT_LOGGER=False
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ✅ 🔹 Monitoring avec Flower
+  flower:
+    image: mher/flower
+    container_name: flower
+    command: ["celery", "--broker=amqp://guest:guest@rabbitmq:5672//", "flower", "--broker_api=http://guest:guest@rabbitmq:15672/api/"]
+    ports:
+      - "5555:5555"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      celery_worker_loan:
+        condition: service_started
+      celery_worker_credit:
+        condition: service_started
+      celery_worker_property:
+        condition: service_started
+      celery_worker_decision:
+        condition: service_started
+      celery_worker_notification:
+        condition: service_started
+    networks:
+      - app_network
