@@ -285,3 +285,7 @@ Ce projet permet :
 
 🚀 **L'application est prête à être testée et déployée !**
 
+## 👨‍💻 **Contributeurs**
+### 🔹 **Travail réalisé par :**
+- **Jemali Achraf**
+-  **Rayane Haddad**
