@@ -14,6 +14,43 @@ Ce projet est une **application de gestion des demandes de prêt** utilisant une
 ---
 
 ## 🌐 **Architecture du Projet**
+### 🏦 Architecture Microservices - Loan Processing System
+
+
+
+```mermaid
+flowchart LR
+
+    subgraph Utilisateur
+        A[💻 Client Web] -- Envoie la demande --> LoanService
+    end
+
+    subgraph Backend[Backend - FastAPI & Celery]
+        LoanService[📜 Loan Service] -->|Publie message| RMQ_Loan[📩 loan_queue]
+        RMQ_Loan --> CreditService[💳 Credit Service]
+        CreditService -->|Publie résultat| RMQ_Credit[📩 credit_queue]
+        RMQ_Credit --> DecisionService[📊 Decision Service]
+        RMQ_Credit --> PropertyService[🏡 Property Service]
+        DecisionService -->|Publie statut| RMQ_Decision[📩 decision_queue]
+        PropertyService -->|Vérifie valeur bien| RMQ_Property[📩 property_queue]
+        RMQ_Decision --> NotificationService[📢 Notification Service]
+        RMQ_Property --> NotificationService[📢 Notification Service]
+    end
+
+    subgraph Messagerie[RabbitMQ]
+        RMQ_Loan
+        RMQ_Credit
+        RMQ_Decision
+        RMQ_Property
+    end
+
+    subgraph Temps Réel
+        NotificationService -->|WebSocket| B[🌐 Client Web]
+    end
+```
+
+---
+
 
 ### 🎨 **Diagramme de l'Architecture**
 ```mermaid
@@ -167,8 +204,8 @@ Ce service consomme les messages de `property_queue` et envoie des notifications
 
 ### 1️⃣ **Cloner le projet**
 ```sh
-git clone https://github.com/votre-repo/bpm-loan-system.git
-cd bpm-loan-system
+git clone https://github.com/JEMALIACHRAF/BPM.git
+cd BPM
 ```
 
 ### 2️⃣ **Lancer l'application avec Docker**
@@ -182,8 +219,20 @@ curl -X POST "http://localhost:8001/loan/apply/" -H "Content-Type: application/j
 ```
 
 ### 4️⃣ **Accéder à l'interface Web**
-- **Monitoring Celery** (Flower) : [http://localhost:5555](http://localhost:5555)
-- **Notifications WebSocket** : [http://localhost:8005/static/index.html](http://localhost:8005/static/index.html)
+Vous pouvez surveiller l'activité des tâches Celery et le système de notifications en accédant aux interfaces suivantes :
+
+- **📊 Monitoring Celery avec Flower** : [http://localhost:5555](http://localhost:5555)
+  - Permet de suivre l’exécution des tâches asynchrones.
+  - Statistiques des tâches en cours, terminées ou échouées.
+  - Gestion des workers Celery.
+
+#### **Exemples de Monitoring avec Flower**
+| Tâches en cours | Crédit Approuvé | Crédit Rejouté |
+|----------------------|----------------|-------------|
+| ![Évaluation de crédit](notification_service/BPM0.png) | ![Tâches en cours](notification_service/BPM00.png) | ![Notification](notification_service/BPM000.png) |
+
+- **🔔 Notifications en Temps Réel** : [http://localhost:8005/static/index.html](http://localhost:8005/static/index.html)
+  - Interface Web permettant aux clients de recevoir les mises à jour des décisions de prêt en temps réel via **WebSockets**.
 
 ---
 
